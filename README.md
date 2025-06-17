@@ -39,13 +39,13 @@ python map_generator.py
 
 * Choose the **number of cells** per side (e.g., 2 for a 2x2 grid).
 
-* Adjust the percentage size of the **calculation area** for OpenStreetMap objects. The larger the size, the lower the risk of missing objects due to truncation, but it also increases the ressource usage.
+* Adjust the percentage size of the **download area** for OpenStreetMap objects. The larger the size, the lower the risk of missing objects due to truncation, but it also increases the ressource usage.
 
 * Click **"Generate Simplified Maps"** to download data and create the simplified map grid.
 
 * Then click **"Generate Vegetation Maps"** to produce vegetation versions of these maps.
 
-
+For debugging purpose, you can look at the temporary full resolution map in the root folder. Here you can see if the generation has any problems before placing cells in Worlded.
 
 ## Output
 
