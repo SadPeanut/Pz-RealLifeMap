@@ -107,16 +107,20 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
 
         largeur_eff = zone_largeur + 2 * margin
         hauteur_eff = zone_hauteur + 2 * margin
-        base_area = 4000 * 3000
-        current_area = zone_largeur * zone_hauteur
-        dpi = int(300 * (base_area / current_area) ** 0.5)
-        dpi = max(50, min(dpi, 300))
 
         m_per_pixel_x = largeur_eff / carte_largeur_px
         m_per_pixel_y = hauteur_eff / carte_hauteur_px
         m_per_pixel = (m_per_pixel_x + m_per_pixel_y) / 2
 
-        fig, ax = plt.subplots(figsize=(carte_largeur_px / dpi, carte_hauteur_px / dpi), dpi=dpi)
+        # Configuration pour obtenir la taille exacte
+        dpi = 100
+        fig_width = carte_largeur_px / dpi
+        fig_height = carte_hauteur_px / dpi
+        
+        fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
+        
+        # Supprimer tous les espaces et marges
+        fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
 
         # Fond grass light
         ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, facecolor=PALETTE['light_grass'], edgecolor='none', zorder=0, antialiased=False))
@@ -165,7 +169,7 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
                 continue
             color = get_road_color(highway)
             width_m = get_road_width_m(highway)
-            linewidth_pt = max((width_m / m_per_pixel) * (72 / dpi) * road_width_scale, 0.1)
+            linewidth_pt = max((width_m / m_per_pixel) * 0.01 * road_width_scale, 0.1)
             x, y = row.geometry.xy
             ax.plot(x, y, color=color, linewidth=linewidth_pt, solid_capstyle='round', zorder=10, antialiased=False)
 
@@ -173,8 +177,10 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
         ax.set_ylim(ymin, ymax)
         ax.set_axis_off()
         ax.set_aspect('equal')
-        plt.tight_layout()
-        plt.savefig("carte.png", dpi=dpi, bbox_inches='tight', pad_inches=0)
+        
+        # Sauvegarder avec la taille exacte - SANS bbox_inches='tight'
+        plt.savefig("carte.png", dpi=dpi, pad_inches=0)
+        plt.close()
 
         status_label.config(text="Carte générée et enregistrée sous 'carte.png'.")
     except Exception as e:
@@ -200,14 +206,14 @@ def add_label_entry(row, label_text, default_val, tooltip_text=None):
     return entry
 
 DEFAULTS = {
-    'lat': 47.802029,
-    'lon': -3.720396,
-    'zone_largeur_m': 3000,
-    'zone_hauteur_m': 3000,
+    'lat': 47.81726751510532,
+    'lon': -3.632532891029882,
+    'zone_largeur_m': 300,
+    'zone_hauteur_m': 300,
     'margin_factor': 0.5,
     'carte_largeur_px': 300,
     'carte_hauteur_px': 300,
-    'road_width_scale': 0.8,
+    'road_width_scale': 100,
 }
 
 row_idx = 0
