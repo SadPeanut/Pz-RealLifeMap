@@ -2,6 +2,11 @@
 
 This project provides a simple tool to generate simplified maps and vegetation maps from real life terrain with OpenStreetMap data using Project Zomboid official color mapping palette.
 
+<img src="https://imgur.com/T9irx4x" width="3000">
+<img src="https://imgur.com/9H934XB" width="3000">
+<img src="https://imgur.com/ijmUu84" width="3000">
+<img src="https://imgur.com/2uxU0nR" width="3000">
+
 ## Installation
 
 1. Clone this repository or download the files.
