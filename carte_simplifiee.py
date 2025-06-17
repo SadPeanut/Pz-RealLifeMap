@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import tkinter as tk
 from tkinter import messagebox
+import numpy as np
+from PIL import Image
+import os
 
 # Palette RGB normalisée (0..1)
 PALETTE = {
@@ -17,7 +20,7 @@ PALETTE = {
     'gravel_dirt': (140/255, 70/255, 15/255),
     'dirt': (120/255, 70/255, 20/255),
     'dark_pothole': (110/255, 100/255, 100/255),
-    'light_pothole': (130/255, 120/255, 120/255),
+    'light_pothole': (130/255, 120/255, 120/255)
 }
 
 def get_natural_color(natural_value):
@@ -53,7 +56,7 @@ def get_road_color(highway, surface=None):
     elif highway in ['secondary', 'tertiary']:
         return PALETTE['medium_asphalt']
     elif highway in ['residential', 'service', 'unclassified']:
-        return PALETTE['light_asphalt']
+        return PALETTE['medium_asphalt']
     elif highway in ['path', 'track', 'bridleway', 'cycleway', 'footway']:
         if surface == 'sand':
             return PALETTE['sand']
@@ -84,16 +87,21 @@ def get_road_width_m(highway):
     else:
         return 8
 
-def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_hauteur_px,
-                 road_width_scale, margin_factor, status_label, root):
+def generate_map_grid(lat, lon, nb_cellules, road_width_scale, margin_factor, status_label, root):
     try:
         status_label.config(text="Téléchargement des données... Patientez.")
         root.update()
 
-        margin = max(zone_largeur, zone_hauteur) * margin_factor
-        dist = max(zone_largeur, zone_hauteur) / 2 + margin
+        # Paramètres de base
+        zone_cellule = 300  # 300m par cellule
+        cellule_px = 300    # 300px par cellule
+        
+        # Calcul de la zone totale
+        zone_totale = zone_cellule * nb_cellules
+        margin = zone_totale * margin_factor
+        dist = zone_totale / 2 + margin
 
-        # Inclure tous les types de voies, y compris chemins
+        # Téléchargement des données pour toute la zone
         G = ox.graph_from_point((lat, lon), dist=dist, network_type='all')
         gdf_edges = ox.graph_to_gdfs(G, nodes=False)
 
@@ -112,27 +120,38 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
         gdf_features_utm = gdf_features.to_crs(utm_crs)
         gdf_edges_utm = gdf_edges.to_crs(utm_crs)
 
+        # Centre de la zone
         center_x = gdf_features_utm.geometry.centroid.x.mean()
         center_y = gdf_features_utm.geometry.centroid.y.mean()
-        xmin, xmax = center_x - zone_largeur/2, center_x + zone_largeur/2
-        ymin, ymax = center_y - zone_hauteur/2, center_y + zone_hauteur/2
 
-        largeur_eff = zone_largeur + 2 * margin
-        hauteur_eff = zone_hauteur + 2 * margin
+        # Dimensions de la carte totale
+        carte_totale_px = cellule_px * nb_cellules
+        largeur_eff = zone_totale + 2 * margin
+        hauteur_eff = zone_totale + 2 * margin
 
-        m_per_pixel_x = largeur_eff / carte_largeur_px
-        m_per_pixel_y = hauteur_eff / carte_hauteur_px
+        m_per_pixel_x = largeur_eff / carte_totale_px
+        m_per_pixel_y = hauteur_eff / carte_totale_px
         m_per_pixel = (m_per_pixel_x + m_per_pixel_y) / 2
 
+        # Génération de la carte complète
         dpi = 100
-        fig_width = carte_largeur_px / dpi
-        fig_height = carte_hauteur_px / dpi
+        fig_width = carte_totale_px / dpi
+        fig_height = carte_totale_px / dpi
         
         fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
         fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
 
-        ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, facecolor=PALETTE['light_grass'], edgecolor='none', zorder=0, antialiased=False))
+        # Limites de la carte complète
+        xmin = center_x - zone_totale/2
+        xmax = center_x + zone_totale/2
+        ymin = center_y - zone_totale/2
+        ymax = center_y + zone_totale/2
 
+        # Fond de carte
+        ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, 
+                              facecolor=PALETTE['light_grass'], edgecolor='none', zorder=0, antialiased=False))
+
+        # Rendu des couches géographiques
         layer = gdf_features_utm[gdf_features_utm.geometry.type.isin(['Polygon', 'MultiPolygon'])].copy()
 
         if not layer.empty:
@@ -164,6 +183,7 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
                 water_layer = layer[water_mask]
                 water_layer.plot(ax=ax, color=water_colors[water_mask], linewidth=0, antialiased=False, zorder=15)
 
+        # Rendu des routes
         for _, row in gdf_edges_utm.iterrows():
             highway = row.get('highway')
             surface = row.get('surface')
@@ -180,16 +200,53 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
         ax.set_axis_off()
         ax.set_aspect('equal')
 
-        plt.savefig("carte.png", dpi=dpi, pad_inches=0)
+        # Sauvegarde de la carte complète temporaire
+        temp_filename = "carte_complete_temp.png"
+        plt.savefig(temp_filename, dpi=dpi, pad_inches=0)
         plt.close()
 
-        status_label.config(text="Carte générée et enregistrée sous 'carte.png'.")
+        status_label.config(text="Découpage en cellules...")
+        root.update()
+
+        # Découpage en cellules
+        img = Image.open(temp_filename)
+        img_array = np.array(img)
+
+        # Création du dossier de sortie
+        output_dir = "cartes_cellules"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Découpage et sauvegarde des cellules
+        for row in range(nb_cellules):
+            for col in range(nb_cellules):
+                # Calcul des coordonnées de découpage
+                y_start = row * cellule_px
+                y_end = (row + 1) * cellule_px
+                x_start = col * cellule_px
+                x_end = (col + 1) * cellule_px
+                
+                # Extraction de la cellule
+                cellule = img_array[y_start:y_end, x_start:x_end]
+                
+                # Création de l'image de la cellule
+                cellule_img = Image.fromarray(cellule)
+                
+                # Nom du fichier avec coordonnées
+                filename = f"{output_dir}/{col},{row}.png"
+                cellule_img.save(filename)
+
+        # Suppression du fichier temporaire
+        os.remove(temp_filename)
+
+        status_label.config(text=f"Grille de {nb_cellules}x{nb_cellules} cartes générée dans le dossier '{output_dir}'.")
+        
     except Exception as e:
         messagebox.showerror("Erreur", f"Une erreur est survenue : {e}")
         status_label.config(text="Erreur lors de la génération.")
 
 root = tk.Tk()
-root.title("Générateur de carte OSM - Simplifié")
+root.title("Générateur de grille de cartes OSM")
 
 frame = tk.Frame(root, padx=10, pady=10)
 frame.pack()
@@ -209,11 +266,8 @@ def add_label_entry(row, label_text, default_val, tooltip_text=None):
 DEFAULTS = {
     'lat': 47.81726751510532,
     'lon': -3.632532891029882,
-    'zone_largeur_m': 300,
-    'zone_hauteur_m': 300,
+    'nb_cellules': 2,
     'margin_factor': 0.5,
-    'carte_largeur_px': 300,
-    'carte_hauteur_px': 300,
     'road_width_scale': 100,
 }
 
@@ -222,15 +276,10 @@ lat_entry = add_label_entry(row_idx, "Latitude (°):", DEFAULTS['lat'])
 row_idx += 1
 lon_entry = add_label_entry(row_idx, "Longitude (°):", DEFAULTS['lon'])
 row_idx += 1
-largeur_zone_entry = add_label_entry(row_idx, "Largeur zone (m):", DEFAULTS['zone_largeur_m'])
-row_idx += 1
-hauteur_zone_entry = add_label_entry(row_idx, "Hauteur zone (m):", DEFAULTS['zone_hauteur_m'])
+nb_cellules_entry = add_label_entry(row_idx, "Nombre de cellules (NxN):", DEFAULTS['nb_cellules'], 
+                                   "Nombre de cellules par côté (ex: 2 = grille 2x2 = 4 cartes)")
 row_idx += 1
 margin_factor_entry = add_label_entry(row_idx, "Facteur de marge :", DEFAULTS['margin_factor'])
-row_idx += 1
-carte_largeur_px_entry = add_label_entry(row_idx, "Largeur image (px):", DEFAULTS['carte_largeur_px'])
-row_idx += 1
-carte_hauteur_px_entry = add_label_entry(row_idx, "Hauteur image (px):", DEFAULTS['carte_hauteur_px'])
 row_idx += 1
 road_width_scale_entry = add_label_entry(row_idx, "Échelle largeur route:", DEFAULTS['road_width_scale'])
 row_idx += 1
@@ -239,21 +288,20 @@ def on_generate():
     try:
         lat = float(lat_entry.get())
         lon = float(lon_entry.get())
-        zone_largeur = float(largeur_zone_entry.get())
-        zone_hauteur = float(hauteur_zone_entry.get())
+        nb_cellules = int(nb_cellules_entry.get())
         margin_factor = float(margin_factor_entry.get())
-        carte_largeur_px = int(carte_largeur_px_entry.get())
-        carte_hauteur_px = int(carte_hauteur_px_entry.get())
         road_width_scale = float(road_width_scale_entry.get())
 
+        if nb_cellules < 1:
+            raise ValueError("Le nombre de cellules doit être au moins 1")
+
         status_label.config(text="")
-        generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_hauteur_px,
-                     road_width_scale, margin_factor, status_label, root)
+        generate_map_grid(lat, lon, nb_cellules, road_width_scale, margin_factor, status_label, root)
     except Exception as e:
         messagebox.showerror("Erreur", f"Entrée invalide : {e}")
         status_label.config(text="Erreur dans les paramètres.")
 
-generate_button = tk.Button(frame, text="Générer la carte", command=on_generate)
+generate_button = tk.Button(frame, text="Générer la grille de cartes", command=on_generate)
 generate_button.grid(row=row_idx, column=0, columnspan=2, pady=10)
 
 status_label = tk.Label(root, text="", fg="orange")
