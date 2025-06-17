@@ -1,8 +1,6 @@
 # Project Zomboid - Real Life Map Generator
 
-This project provides a simple tool to generate simplified maps and vegetation map from real life terrain with OpenStreetMap data using Project Zomboid official color mapping palette.
-
-
+This project provides a simple tool to generate simplified maps and vegetation maps from real life terrain with OpenStreetMap data using Project Zomboid official color mapping palette.
 
 ## Installation
 
@@ -24,7 +22,6 @@ numpy
 ```
 Tkinter is usually included with Python by default.
 
-
 ## Usage
 
 Run the application with:
@@ -39,28 +36,41 @@ python map_generator.py
 
 * Choose the **number of cells** per side (e.g., 2 for a 2x2 grid).
 
-* Adjust the percentage size of the **download area** for OpenStreetMap objects. The larger the size, the lower the risk of missing objects due to truncation, but it also increases the ressource usage.
+* Adjust the percentage size of the **download area** for OpenStreetMap objects. The larger the size, the lower the risk of missing objects due to truncation, but it also increases the resource usage.
 
-* Click **"Generate Simplified Maps"** to download data and create the simplified map grid.
+* Adjust the **road width scale** to make roads more or less visible on the generated maps.
 
-* Then click **"Generate Vegetation Maps"** to produce vegetation versions of these maps.
-
-For debugging purpose, you can look at the temporary full resolution map in the root folder. Here you can see if the generation has any problems before placing cells in Worlded.
+* Click **"Generate Maps + Vegetation"** to download data and create both the simplified map grid and vegetation maps in one operation.
 
 ## Output
 
-Generated images are saved automatically in two folders:
+The tool generates several types of output:
 
-* `map_cells/` — contains simplified map tiles.
-* `map_vegetation/` — contains the vegetation maps.
+### Complete Maps (Full Resolution)
+* `complete_map.png` — Full resolution simplified map of the entire downloaded area
+* `complete_vegetation_map.png` — Full resolution vegetation map of the entire downloaded area
 
+These complete maps are useful for:
+- Verifying that all data was correctly downloaded and rendered
+- Getting an overview of the entire area before it's split into cells
+- Debugging any issues with the generation process
 
+### Map Tiles (Cell Grid)
+* `map_cells/` — Contains simplified map tiles in a grid format (e.g., `0,0.png`, `0,1.png`, etc.)
+* `map_vegetation/` — Contains corresponding vegetation map tiles
+
+Each cell is 300x300 pixels and represents a 300x300 meter area in the real world.
+
+## Workflow
+
+1. **Data Download**: Downloads OpenStreetMap data for roads, natural features, landuse, water bodies, etc.
+2. **Map Rendering**: Creates a complete simplified map using Project Zomboid's color palette
+3. **Vegetation Processing**: Generates a vegetation classification map from the simplified map
+4. **Cell Division**: Splits both complete maps into individual tiles for use in map editors
 
 ## About
 
-This is a
-
-This project uses [OSMnx](https://osmnx.readthedocs.io/)  to download OpenStreetMap data.
+This project uses [OSMnx](https://osmnx.readthedocs.io/) to download OpenStreetMap data.
 
 OpenStreetMap data is made available under the Open Database License (ODbL). You are free to copy, distribute, transmit and adapt the data, as long as you credit OpenStreetMap and its contributors. If you alter or build upon the data, you may distribute the result only under the same license.
 
