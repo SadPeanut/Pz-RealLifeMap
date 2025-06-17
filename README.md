@@ -7,6 +7,11 @@ This project provides a simple tool to generate simplified maps and vegetation m
 <img src="https://imgur.com/ijmUu84" width="3000">
 <img src="https://imgur.com/2uxU0nR" width="3000">
 
+![ ](https://imgur.com/T9irx4x)
+![ ](https://imgur.com/9H934XB)
+![ ](https://imgur.com/ijmUu84)
+![ ](https://imgur.com/2uxU0nR)
+
 ## Installation
 
 1. Clone this repository or download the files.
