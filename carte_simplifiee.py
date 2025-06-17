@@ -40,18 +40,27 @@ def get_natural_color(natural_value):
 def get_landuse_color(landuse_value):
     if landuse_value is None or landuse_value == '' or str(landuse_value).lower() == 'nan':
         return None
-    # Seulement les landuse avec des valeurs définies sont coloriés en light_grass
     return PALETTE['light_grass']
 
-def get_road_color(highway):
+def get_road_color(highway, surface=None):
     if isinstance(highway, list):
         highway = highway[0]
+    if isinstance(surface, list):
+        surface = surface[0]
+
     if highway in ['motorway', 'primary', 'trunk']:
         return PALETTE['dark_asphalt']
     elif highway in ['secondary', 'tertiary']:
         return PALETTE['medium_asphalt']
     elif highway in ['residential', 'service', 'unclassified']:
         return PALETTE['light_asphalt']
+    elif highway in ['path', 'track', 'bridleway', 'cycleway', 'footway']:
+        if surface == 'sand':
+            return PALETTE['sand']
+        elif surface in ['gravel', 'dirt', 'earth']:
+            return PALETTE['gravel_dirt']
+        else:
+            return PALETTE['dirt']
     else:
         return PALETTE['medium_asphalt']
 
@@ -70,6 +79,8 @@ def get_road_width_m(highway):
         return 8
     elif highway in ['residential', 'service', 'unclassified']:
         return 7
+    elif highway in ['path', 'track', 'bridleway', 'cycleway', 'footway']:
+        return 2
     else:
         return 8
 
@@ -82,7 +93,8 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
         margin = max(zone_largeur, zone_hauteur) * margin_factor
         dist = max(zone_largeur, zone_hauteur) / 2 + margin
 
-        G = ox.graph_from_point((lat, lon), dist=dist, network_type='drive')
+        # Inclure tous les types de voies, y compris chemins
+        G = ox.graph_from_point((lat, lon), dist=dist, network_type='all')
         gdf_edges = ox.graph_to_gdfs(G, nodes=False)
 
         tags = {
@@ -112,23 +124,17 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
         m_per_pixel_y = hauteur_eff / carte_hauteur_px
         m_per_pixel = (m_per_pixel_x + m_per_pixel_y) / 2
 
-        # Configuration pour obtenir la taille exacte
         dpi = 100
         fig_width = carte_largeur_px / dpi
         fig_height = carte_hauteur_px / dpi
         
         fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
-        
-        # Supprimer tous les espaces et marges
         fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
 
-        # Fond grass light
         ax.add_patch(Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, facecolor=PALETTE['light_grass'], edgecolor='none', zorder=0, antialiased=False))
 
-        # Colorier polygones natural en vert/sable/eau
         layer = gdf_features_utm[gdf_features_utm.geometry.type.isin(['Polygon', 'MultiPolygon'])].copy()
-        
-        # D'abord dessiner les autres éléments natural (zorder=2)
+
         if not layer.empty:
             colors = layer['natural'].apply(get_natural_color)
             mask = colors.notna()
@@ -136,25 +142,21 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
                 layer_to_plot = layer[mask]
                 layer_to_plot.plot(ax=ax, color=colors[mask], linewidth=0, antialiased=False, zorder=2)
 
-        # Colorier polygones landuse en light_grass (zorder=3)
         if not layer.empty:
-            # Vérifier que la colonne landuse existe
             if 'landuse' in layer.columns:
                 landuse_colors = layer['landuse'].apply(get_landuse_color)
                 landuse_mask = landuse_colors.notna()
                 if landuse_mask.any():
                     landuse_layer_to_plot = layer[landuse_mask]
                     landuse_layer_to_plot.plot(ax=ax, color=landuse_colors[landuse_mask], linewidth=0, antialiased=False, zorder=3)
-        
-        # Dessiner le sable par-dessus les grass (zorder=5)
+
         if not layer.empty:
             sand_colors = layer['natural'].apply(lambda x: PALETTE['sand'] if x and str(x).lower() in ['sand', 'beach'] else None)
             sand_mask = sand_colors.notna()
             if sand_mask.any():
                 sand_layer = layer[sand_mask]
                 sand_layer.plot(ax=ax, color=sand_colors[sand_mask], linewidth=0, antialiased=False, zorder=5)
-        
-        # Dessiner l'eau et le littoral au-dessus de tout (zorder=15)
+
         if not layer.empty:
             water_colors = layer['natural'].apply(lambda x: PALETTE['water'] if x and str(x).lower() in ['water', 'wetland', 'bay', 'coastline'] else None)
             water_mask = water_colors.notna()
@@ -162,23 +164,22 @@ def generate_map(lat, lon, zone_largeur, zone_hauteur, carte_largeur_px, carte_h
                 water_layer = layer[water_mask]
                 water_layer.plot(ax=ax, color=water_colors[water_mask], linewidth=0, antialiased=False, zorder=15)
 
-        # Tracer routes
         for _, row in gdf_edges_utm.iterrows():
             highway = row.get('highway')
+            surface = row.get('surface')
             if highway is None:
                 continue
-            color = get_road_color(highway)
+            color = get_road_color(highway, surface)
             width_m = get_road_width_m(highway)
             linewidth_pt = max((width_m / m_per_pixel) * 0.01 * road_width_scale, 0.1)
             x, y = row.geometry.xy
-            ax.plot(x, y, color=color, linewidth=linewidth_pt, solid_capstyle='round', zorder=10, antialiased=False)
+            ax.plot(x, y, color=color, linewidth=linewidth_pt, solid_capstyle='round', zorder=9, antialiased=False)
 
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
         ax.set_axis_off()
         ax.set_aspect('equal')
-        
-        # Sauvegarder avec la taille exacte - SANS bbox_inches='tight'
+
         plt.savefig("carte.png", dpi=dpi, pad_inches=0)
         plt.close()
 
