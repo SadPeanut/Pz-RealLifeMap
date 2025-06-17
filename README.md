@@ -2,10 +2,16 @@
 
 This project provides a simple tool to generate simplified maps and vegetation maps from real life terrain with OpenStreetMap data using Project Zomboid official color mapping palette.
 
-![ ](./readmeData/interface.png)
-![ ](./readmeData/kerfany_satellite.png)
-![ ](./readmeData/kerfany_simplied.png)
-![ ](./readmeData/kerfany_vegetation.png)
+<div align="center">
+  <img src="./readmeData/interface.png" width="400" alt="Interface">
+</div>
+<table>
+  <tr>
+    <td><img src="./readmeData/kerfany_satellite.png" width="250" alt="Satellite view"></td>
+    <td><img src="./readmeData/kerfany_simplied.png" width="250" alt="Simplified map"></td>
+    <td><img src="./readmeData/kerfany_vegetation.png" width="250" alt="Vegetation map"></td>
+  </tr>
+</table>
 
 ## Installation
 
