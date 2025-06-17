@@ -2,3 +2,7 @@ osmnx
 matplotlib
 pillow
 numpy
+shapely
+pyproj
+rtree
+geopandas

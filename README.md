@@ -19,6 +19,10 @@ osmnx
 matplotlib
 pillow
 numpy
+shapely
+pyproj
+rtree
+geopandas
 ```
 Tkinter is usually included with Python by default.
 
