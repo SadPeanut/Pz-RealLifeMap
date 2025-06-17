@@ -7,10 +7,10 @@ This project provides a simple tool to generate simplified maps and vegetation m
 <img src="https://imgur.com/ijmUu84" width="3000">
 <img src="https://imgur.com/2uxU0nR" width="3000">
 
-![ ](https://imgur.com/T9irx4x)
-![ ](https://imgur.com/9H934XB)
-![ ](https://imgur.com/ijmUu84)
-![ ](https://imgur.com/2uxU0nR)
+![ ](https://imgur.com/gallery/project-zomboid-map-generator-tvvTRQe#T9irx4x)
+![ ](https://imgur.com/gallery/project-zomboid-map-generator-tvvTRQe#9H934XB)
+![ ](https://imgur.com/gallery/project-zomboid-map-generator-tvvTRQe#ijmUu84)
+![ ](https://imgur.com/gallery/project-zomboid-map-generator-tvvTRQe#2uxU0nR)
 
 ## Installation
 
