@@ -6,3 +6,6 @@ map_vegetation/
 
 # Cache files
 cache/
+
+# Cringe MacOS file
+.DS_Store
