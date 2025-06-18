@@ -28,10 +28,11 @@ PALETTE_ORIG = {
     'light_grass': (145, 135, 60),
 }
 
+# PALETTE DE VÉGÉTATION CORRIGÉE
 VEGETATION_COLORS = {
-    'light_grass': (0, 255, 0),
-    'medium_grass': (64, 0, 0),
-    'dark_grass': (127, 0, 0),
+    'dense_trees_and_dark_grass': (127, 0, 0),  # Correspond à dark_grass
+    'trees_and_grass': (64, 0, 0),             # Correspond à medium_grass  
+    'light_long_grass': (0, 255, 0),           # Correspond à light_grass
 }
 
 # ========== UTILS ==========
@@ -96,7 +97,39 @@ def get_road_width_m(highway):
         'footway': 2
     }.get(highway, 8)
 
-# ========== SIMPLIFIED MAP GENERATION ==========
+# ========== VEGETATION MAPS OPTIMISÉES ==========
+def classify_vegetation_color_vectorized(img_array):
+    """
+    Version vectorisée ultra-rapide de la classification des couleurs de végétation
+    """
+    # Convertir les couleurs de référence en arrays numpy
+    ref_colors = np.array(list(PALETTE_ORIG.values()))  # Shape: (3, 3) pour 3 couleurs RGB
+    veg_colors = np.array(list(VEGETATION_COLORS.values()))  # Shape: (3, 3)
+    
+    # Calculer la distance pour tous les pixels en une fois
+    # img_array shape: (H, W, 3)
+    # ref_colors shape: (3, 3)
+    # On veut calculer la distance entre chaque pixel et chaque couleur de référence
+    
+    h, w, c = img_array.shape
+    img_flat = img_array.reshape(-1, 3)  # (H*W, 3)
+    
+    # Calculer les distances euclidiennes vectorisées
+    distances = np.sqrt(np.sum((img_flat[:, np.newaxis, :] - ref_colors[np.newaxis, :, :]) ** 2, axis=2))
+    
+    # Trouver l'index de la couleur la plus proche pour chaque pixel
+    closest_indices = np.argmin(distances, axis=1)
+    
+    # Créer un masque pour les pixels suffisamment proches (distance < 17 ≈ sqrt(3*10²))
+    min_distances = np.min(distances, axis=1)
+    valid_mask = min_distances < 17
+    
+    # Créer l'image de sortie
+    result = np.zeros((h * w, 3), dtype=np.uint8)
+    result[valid_mask] = veg_colors[closest_indices[valid_mask]]
+    
+    return result.reshape(h, w, 3)
+
 def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, status_label):
     try:
         status_label.config(text="Downloading OSM data... Please wait.", fg="orange")
@@ -281,15 +314,12 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
         print("Step 5.5: Processing complete vegetation map...")
         root.update()
 
-        # Load and process vegetation map
+        # OPTIMISATION: Version vectorisée
         img = Image.open(complete_map_filename).convert("RGB")
         img_array = np.array(img)
         
-        # Generate vegetation map in one pass
-        veg_array = np.zeros_like(img_array)
-        for y in range(img_array.shape[0]):
-            for x in range(img_array.shape[1]):
-                veg_array[y, x] = classify_vegetation_color(tuple(img_array[y, x]))
+        # Utiliser la version vectorisée
+        veg_array = classify_vegetation_color_vectorized(img_array)
         
         # MODIFICATION: Sauvegarder la carte de végétation complète avec un nom définitif
         complete_veg_filename = "complete_vegetation_map.png"
@@ -341,15 +371,10 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
         status_label.config(text="Error during map generation.", fg="red")
         print(f"ERROR during map generation: {e}")
 
-# ========== VEGETATION MAPS ==========
-def classify_vegetation_color(rgb):
-    r, g, b = rgb
-    for key, ref_rgb in PALETTE_ORIG.items():
-        if all(abs(c1 - c2) < 10 for c1, c2 in zip((r, g, b), ref_rgb)):
-            return VEGETATION_COLORS[key]
-    return (0, 0, 0)
-
 def generate_vegetation_maps(status_label):
+    """
+    Version optimisée de la génération des cartes de végétation
+    """
     try:
         status_label.config(text="Starting vegetation map generation...", fg="orange")
         print("Vegetation: start processing images.")
@@ -371,11 +396,9 @@ def generate_vegetation_maps(status_label):
             path = os.path.join(input_dir, filename)
             img = Image.open(path).convert("RGB")
             img_array = np.array(img)
-            new_array = np.zeros_like(img_array)
-
-            for y in range(img_array.shape[0]):
-                for x in range(img_array.shape[1]):
-                    new_array[y, x] = classify_vegetation_color(tuple(img_array[y, x]))
+            
+            # Utiliser la version vectorisée
+            new_array = classify_vegetation_color_vectorized(img_array)
 
             base, _ = os.path.splitext(filename)
             Image.fromarray(new_array).save(os.path.join(output_dir, f"{base}_veg.png"))

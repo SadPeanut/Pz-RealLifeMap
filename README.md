@@ -8,7 +8,7 @@ This project provides a simple tool to generate simplified maps and vegetation m
 <table>
   <tr>
     <td><img src="./readmeData/kerfany_satellite.png" width="250" alt="Satellite view"></td>
-    <td><img src="./readmeData/kerfany_simplied.png" width="250" alt="Simplified map"></td>
+    <td><img src="./readmeData/kerfany_simplified.png" width="250" alt="Simplified map"></td>
     <td><img src="./readmeData/kerfany_vegetation.png" width="250" alt="Vegetation map"></td>
   </tr>
 </table>
