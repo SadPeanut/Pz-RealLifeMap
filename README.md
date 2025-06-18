@@ -83,7 +83,7 @@ Each cell is 300x300 pixels and represents a 300x300 meter area in the real worl
 3. **Vegetation Processing**: Generates a vegetation classification map from the simplified map
 4. **Cell Division**: Splits both complete maps into individual tiles for use in map editors
 
-## Know issues
+## Known issues
 
 The coastline is often badly generated because it's a line in OSM, so it's 'impossible' to color. I've drawn it anyway, to make it easier to modify later (paint bucket).
 
