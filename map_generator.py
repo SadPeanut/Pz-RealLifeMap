@@ -237,21 +237,54 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
                         print(f"Rendu {col}: {mask.sum()} objets")
                         layer[mask].plot(ax=ax, color=colors[mask], linewidth=0, zorder=1)
 
-        # Draw water features
+        # Draw water features (polygons)
         water_layer = gdf_features_utm[gdf_features_utm.geometry.type.isin(['Polygon', 'MultiPolygon'])].copy()
         if not water_layer.empty:
             water_layer['is_water'] = False
             for col in ['natural', 'waterway', 'landuse']:
                 if col in water_layer.columns:
                     water_mask = water_layer[col].astype(str).str.lower().isin([
-                        'water', 'wetland', 'bay', 'coastline', 'reservoir'
+                        'water', 'wetland', 'bay', 'reservoir'  # coastline retiré car c'est une ligne
                     ])
                     water_layer.loc[water_mask, 'is_water'] = True
             if 'is_water' in water_layer.columns:
                 water_polys = water_layer[water_layer['is_water']]
                 if not water_polys.empty:
-                    print(f"Objets eau: {len(water_polys)}")
+                    print(f"Objets eau (polygones): {len(water_polys)}")
                     water_polys.plot(ax=ax, color=PALETTE['water'], linewidth=0, zorder=2)
+
+        # Draw water features (lines) - NOUVEAU: coastlines et cours d'eau
+        water_lines = gdf_features_utm[gdf_features_utm.geometry.type.isin(['LineString', 'MultiLineString'])].copy()
+        if not water_lines.empty:
+            water_lines['is_water_line'] = False
+            for col in ['natural', 'waterway']:
+                if col in water_lines.columns:
+                    water_line_mask = water_lines[col].astype(str).str.lower().isin([
+                        'coastline', 'river', 'stream', 'canal', 'ditch'
+                    ])
+                    water_lines.loc[water_line_mask, 'is_water_line'] = True
+            
+            water_line_features = water_lines[water_lines['is_water_line']]
+            if not water_line_features.empty:
+                print(f"Objets eau (lignes): {len(water_line_features)}")
+                # Largeur des lignes d'eau basée sur le type
+                for _, row in water_line_features.iterrows():
+                    waterway_type = row.get('waterway', '')
+                    natural_type = row.get('natural', '')
+                    
+                    if natural_type == 'coastline':
+                        lw = 4  # Coastline plus épaisse
+                    elif waterway_type in ['river', 'canal']:
+                        lw = 3  # Rivières moyennes
+                    else:
+                        lw = 2  # Petits cours d'eau
+                    
+                    try:
+                        if hasattr(row.geometry, 'xy'):
+                            x, y = row.geometry.xy
+                            ax.plot(x, y, color=PALETTE['water'], linewidth=lw, solid_capstyle='round', zorder=2)
+                    except Exception as e:
+                        print(f"Erreur lors du dessin d'une ligne d'eau: {e}")
 
         # Draw sand areas
         sand_layer = gdf_features_utm[gdf_features_utm.geometry.type.isin(['Polygon', 'MultiPolygon'])].copy()
@@ -370,6 +403,7 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
         showerror("Error", f"Map generation error: {e}")
         status_label.config(text="Error during map generation.", fg="red")
         print(f"ERROR during map generation: {e}")
+
 
 def generate_vegetation_maps(status_label):
     """
