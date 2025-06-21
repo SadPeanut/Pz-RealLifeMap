@@ -96,6 +96,29 @@ def get_road_width_m(highway):
         'footway': 2
     }.get(highway, 8)
 
+def get_road_priority(highway):
+    """Retourne la priorité de dessin d'une route (plus le chiffre est élevé, plus elle est dessinée tard)"""
+    if isinstance(highway, list): 
+        highway = highway[0]
+    
+    priority_order = {
+        'path': 1,
+        'track': 2,
+        'footway': 3,
+        'cycleway': 4,
+        'bridleway': 5,
+        'service': 6,
+        'unclassified': 7,
+        'residential': 8,
+        'tertiary': 9,
+        'secondary': 10,
+        'primary': 11,
+        'trunk': 12,
+        'motorway': 13
+    }
+    
+    return priority_order.get(highway, 5)  # valeur par défaut pour les types inconnus
+
 # ========== OPTIMIZED VEGETATION MAPS ==========
 def classify_vegetation_color_vectorized(img_array):
     ref_colors = np.array(list(PALETTE_ORIG.values()))
@@ -264,12 +287,23 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
                     print(f"Sand objects: {len(sand_polys)}")
                     sand_polys.plot(ax=ax, color=PALETTE['sand'], linewidth=0, zorder=3)
 
-        print(f"Drawing roads: {len(gdf_edges_utm)} roads")
-        routes_drawn = 0
-        for _, row in gdf_edges_utm.iterrows():
+        # ========== MODIFICATION PRINCIPALE : TRI DES ROUTES PAR IMPORTANCE ==========
+        print(f"Sorting and drawing roads: {len(gdf_edges_utm)} roads")
+        
+        roads_to_draw = []
+        for idx, row in gdf_edges_utm.iterrows():
             highway = row.get('highway')
-            if not highway:
-                continue
+            if highway:
+                priority = get_road_priority(highway)
+                roads_to_draw.append((priority, idx, row))
+        
+        roads_to_draw.sort(key=lambda x: x[0])
+        
+        print(f"Roads sorted by priority, drawing {len(roads_to_draw)} roads...")
+        routes_drawn = 0
+        
+        for priority, idx, row in roads_to_draw:
+            highway = row.get('highway')
             surface = row.get('surface')
             color = get_road_color(highway, surface)
             width_m = get_road_width_m(highway)
@@ -281,6 +315,7 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
             except Exception as e:
                 print(f"Error drawing a road: {e}")
                 continue
+        
         print(f"Roads drawn: {routes_drawn}")
 
         ax.set_xlim(xmin, xmax)
