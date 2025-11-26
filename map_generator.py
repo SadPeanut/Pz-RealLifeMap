@@ -8,6 +8,9 @@ from PIL import Image
 import numpy as np
 import osmnx as ox
 
+
+
+
 # ========== PALETTES ==========
 PALETTE = {
     'dark_grass': (90/255, 100/255, 35/255),
@@ -33,6 +36,9 @@ VEGETATION_COLORS = {
     'trees_and_grass': (64, 0, 0),
     'light_long_grass': (0, 255, 0),
 }
+
+
+
 
 # ========== UTILS ==========
 def get_natural_color(natural_value):
@@ -119,7 +125,7 @@ def get_road_priority(highway):
     
     return priority_order.get(highway, 5)  # valeur par défaut pour les types inconnus
 
-# ========== OPTIMIZED VEGETATION MAPS ==========
+# ========== VEGETATION MAP ==========
 def classify_vegetation_color_vectorized(img_array):
     ref_colors = np.array(list(PALETTE_ORIG.values()))
     veg_colors = np.array(list(VEGETATION_COLORS.values()))
@@ -287,7 +293,10 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
                     print(f"Sand objects: {len(sand_polys)}")
                     sand_polys.plot(ax=ax, color=PALETTE['sand'], linewidth=0, zorder=3)
 
-        # ========== MODIFICATION PRINCIPALE : TRI DES ROUTES PAR IMPORTANCE ==========
+
+
+
+        # ========== TRI DES ROUTES PAR IMPORTANCE ==========
         print(f"Sorting and drawing roads: {len(gdf_edges_utm)} roads")
         
         roads_to_draw = []
@@ -317,6 +326,10 @@ def generate_map_grid(lat, lon, nb_cells, road_width_scale, margin_factor, statu
                 continue
         
         print(f"Roads drawn: {routes_drawn}")
+
+
+
+
 
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
@@ -417,6 +430,10 @@ def generate_vegetation_maps(status_label):
         showerror("Error", f"Vegetation generation error: {e}")
         status_label.config(text="Error during vegetation generation.", fg="red")
         print(f"ERROR during vegetation generation: {e}")
+
+
+
+
 
 # ========== GUI ==========
 root = tk.Tk()
