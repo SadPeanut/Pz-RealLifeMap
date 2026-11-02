@@ -1,5 +1,6 @@
 import os
 import shutil
+import math
 import tkinter as tk
 from tkinter.messagebox import showerror
 import matplotlib.pyplot as plt
@@ -126,17 +127,33 @@ def get_road_priority(highway):
     return priority_order.get(highway, 5)  # valeur par défaut pour les types inconnus
 
 # ========== VEGETATION MAP ==========
+
 def classify_vegetation_color_vectorized(img_array):
-    ref_colors = np.array(list(PALETTE_ORIG.values()))
-    veg_colors = np.array(list(VEGETATION_COLORS.values()))
+    ref_colors = np.array(list(PALETTE_ORIG.values()), dtype=np.float32)
+    veg_colors = np.array(list(VEGETATION_COLORS.values()), dtype=np.uint8)
+
     h, w, c = img_array.shape
     img_flat = img_array.reshape(-1, 3)
-    distances = np.sqrt(np.sum((img_flat[:, np.newaxis, :] - ref_colors[np.newaxis, :, :]) ** 2, axis=2))
-    closest_indices = np.argmin(distances, axis=1)
-    min_distances = np.min(distances, axis=1)
-    valid_mask = min_distances < 17
     result = np.zeros((h * w, 3), dtype=np.uint8)
-    result[valid_mask] = veg_colors[closest_indices[valid_mask]]
+
+    # Process pixels in batches to reduce temporary memory usage.
+    batch_size = 100_000
+
+    for start in range(0, len(img_flat), batch_size):
+        end = min(start + batch_size, len(img_flat))
+        batch = img_flat[start:end].astype(np.float32)
+
+        differences = batch[:, np.newaxis, :] - ref_colors[np.newaxis, :, :]
+        distances_squared = np.sum(differences * differences, axis=2)
+
+        closest_indices = np.argmin(distances_squared, axis=1)
+        min_distances_squared = np.min(distances_squared, axis=1)
+
+        valid_mask = min_distances_squared < (17 * 17)
+
+        batch_result = result[start:end]
+        batch_result[valid_mask] = veg_colors[closest_indices[valid_mask]]
+
     return result.reshape(h, w, 3)
 
 def cleanup_cache():
@@ -463,6 +480,7 @@ margin_entry = add_entry("Download margin (%):", 0.8, 3,
 width_entry = add_entry("Road width scale:", 100, 4,
                         "Scale factor for road widths on the generated maps.")
 
+
 def on_generate_maps():
     try:
         lat = float(lat_entry.get())
@@ -470,15 +488,36 @@ def on_generate_maps():
         n = int(cells_entry.get())
         margin = float(margin_entry.get())
         width_scale = float(width_entry.get())
-        if n < 1:
-            raise ValueError("Number of cells must be ≥ 1")
-        if margin < 0:
-            raise ValueError("Margin must be ≥ 0")
-        generate_map_grid(lat, lon, n, width_scale, margin, status_label)
-    except Exception as e:
-        showerror("Error", f"Invalid parameter: {e}")
-        status_label.config(text="Parameter error.", fg="red")
 
+        # Validate latitude
+        if not math.isfinite(lat) or not -90 <= lat <= 90:
+            raise ValueError("Latitude must be between -90 and 90.")
+
+        # Validate longitude
+        if not math.isfinite(lon) or not -180 <= lon <= 180:
+            raise ValueError("Longitude must be between -180 and 180.")
+
+        # Validate number of cells
+        if n < 1:
+            raise ValueError("Number of cells must be at least 1.")
+
+        # Validate download margin
+        if not math.isfinite(margin) or margin < 0:
+            raise ValueError("Margin must be a finite, non-negative number.")
+
+        # Validate road width scale
+        if not math.isfinite(width_scale) or width_scale <= 0:
+            raise ValueError("Road width scale must be a positive number.")
+
+        generate_map_grid(lat, lon, n, width_scale, margin, status_label)
+
+    except (ValueError, OverflowError) as e:
+        showerror("Invalid Input", str(e))
+        status_label.config(text="Please check your input parameters.", fg="red")
+
+    except Exception as e:
+        showerror("Error", f"Map generation failed: {e}")
+        status_label.config(text="Map generation error.", fg="red")
 def on_generate_vegetation():
     generate_vegetation_maps(status_label)
 
