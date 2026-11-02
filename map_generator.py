@@ -1,5 +1,6 @@
 import os
 import shutil
+import math
 import tkinter as tk
 from tkinter.messagebox import showerror
 import matplotlib.pyplot as plt
@@ -479,6 +480,7 @@ margin_entry = add_entry("Download margin (%):", 0.8, 3,
 width_entry = add_entry("Road width scale:", 100, 4,
                         "Scale factor for road widths on the generated maps.")
 
+
 def on_generate_maps():
     try:
         lat = float(lat_entry.get())
@@ -486,15 +488,36 @@ def on_generate_maps():
         n = int(cells_entry.get())
         margin = float(margin_entry.get())
         width_scale = float(width_entry.get())
-        if n < 1:
-            raise ValueError("Number of cells must be ≥ 1")
-        if margin < 0:
-            raise ValueError("Margin must be ≥ 0")
-        generate_map_grid(lat, lon, n, width_scale, margin, status_label)
-    except Exception as e:
-        showerror("Error", f"Invalid parameter: {e}")
-        status_label.config(text="Parameter error.", fg="red")
 
+        # Validate latitude
+        if not math.isfinite(lat) or not -90 <= lat <= 90:
+            raise ValueError("Latitude must be between -90 and 90.")
+
+        # Validate longitude
+        if not math.isfinite(lon) or not -180 <= lon <= 180:
+            raise ValueError("Longitude must be between -180 and 180.")
+
+        # Validate number of cells
+        if n < 1:
+            raise ValueError("Number of cells must be at least 1.")
+
+        # Validate download margin
+        if not math.isfinite(margin) or margin < 0:
+            raise ValueError("Margin must be a finite, non-negative number.")
+
+        # Validate road width scale
+        if not math.isfinite(width_scale) or width_scale <= 0:
+            raise ValueError("Road width scale must be a positive number.")
+
+        generate_map_grid(lat, lon, n, width_scale, margin, status_label)
+
+    except (ValueError, OverflowError) as e:
+        showerror("Invalid Input", str(e))
+        status_label.config(text="Please check your input parameters.", fg="red")
+
+    except Exception as e:
+        showerror("Error", f"Map generation failed: {e}")
+        status_label.config(text="Map generation error.", fg="red")
 def on_generate_vegetation():
     generate_vegetation_maps(status_label)
 
